@@ -56,8 +56,56 @@ class ServerThread(threading.Thread):
 Primary handler for client connections.
 """
 class Handler:
-    def say_hello(self):
-        return "Hello"
+    def login(self, username, password):
+        pass
+
+    def logout(self, token):
+        pass
+
+    def get_users(self):
+        pass
+
+    def get_user(self, username):
+        pass
+
+    def create_user(self, username, password, first_name, last_name, email, address):
+        pass
+
+    def delete_user(self, token, username):
+        pass
+
+    def get_messages(self, token, username, group, start_time, end_time):
+        pass
+
+    def send_message(self, token, username, group, text):
+        pass
+
+    def get_groups(self, token):
+        pass
+
+    def get_group(self, token, id):
+        pass
+
+    def create_group(self, token):
+        pass
+
+    def add_group_user(self, token, group, username):
+        pass
+
+    def remove_group_user(self, token, group, username):
+        pass
+
+    def delete_group(self, token, group):
+        pass
+
+    def get_friends(self, token):
+        pass
+
+    def add_friend(self, token, username):
+        pass
+
+    def remove_friend(self, token, username):
+        pass
 
 
 def main():
