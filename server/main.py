@@ -56,20 +56,40 @@ class ServerThread(threading.Thread):
 Primary handler for client connections.
 """
 class Handler:
+    # Initialize modules.
+    accountManager = accounts.AccountManager()
+    sessionManager = session.SessionManager()
+
     def login(self, username, password):
-        pass
+        # Make sure the user exists.
+        if not Handler.accountManager.user_exists(username):
+            return False
+
+        # Validate password.
+        if not Handler.accountManager.validate_password(username, password):
+            return False
+
+        return True
 
     def logout(self, token):
         pass
 
     def get_users(self):
-        pass
+        return Handler.accountManager.get_users()
 
     def get_user(self, username):
         pass
 
     def create_user(self, username, password, first_name, last_name, email, address):
-        pass
+        Handler.accountManager.create_user(
+            username,
+            password,
+            first_name,
+            last_name,
+            email,
+            address
+        )
+        return True
 
     def delete_user(self, token, username):
         pass
@@ -117,10 +137,6 @@ def main():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
     logging.getLogger().addHandler(handler)
-
-    # Initialize modules.
-    accountManager = accounts.AccountManager()
-    sessionManager = session.SessionManager()
 
     server = Server(Handler)
     server.listen(6543)

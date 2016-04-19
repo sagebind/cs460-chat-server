@@ -14,12 +14,23 @@ class AccountManager:
         return username in self.accounts
 
     def get_users(self):
-        return self.accounts.values()
+        return list(map(lambda user: user.username, self.accounts.values()))
 
     def get_user(self, username):
         if not self.user_exists(username):
             raise Exception("No such user exists.")
         return self.accounts[username]
+
+    def validate_password(self, username, password):
+        if not self.user_exists(username):
+            return False
+
+        encrypted_password = hashlib.sha256(password.encode()).hexdigest()
+
+        if self.get_user(username).password != encrypted_password:
+            return False
+
+        return True
 
     def create_user(self, username, password, first_name, last_name, email, address):
         if self.user_exists(username):
