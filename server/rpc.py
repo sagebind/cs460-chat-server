@@ -15,9 +15,10 @@ class RpcException(Exception):
 """
 Connects to a remote RPC peer.
 """
-def connect(address, port, handler = {}):
+def connect(address, port, handler = {}, timeout=5):
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    connection.settimeout(timeout)
     connection.connect((address, port))
 
     listener = Listener(connection, handler)
