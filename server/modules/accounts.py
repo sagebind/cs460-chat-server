@@ -14,23 +14,12 @@ class AccountManager:
         return username in self.accounts
 
     def get_users(self):
-        return list(map(lambda user: user.username, self.accounts.values()))
+        return list(self.accounts.keys())
 
     def get_user(self, username):
         if not self.user_exists(username):
             raise Exception("No such user exists.")
         return self.accounts[username]
-
-    def validate_password(self, username, password):
-        if not self.user_exists(username):
-            return False
-
-        encrypted_password = hashlib.sha256(password.encode()).hexdigest()
-
-        if self.get_user(username).password != encrypted_password:
-            return False
-
-        return True
 
     def create_user(self, username, password, first_name, last_name, email, address):
         if self.user_exists(username):
@@ -48,9 +37,21 @@ class AccountManager:
             del self.accounts[username]
             self.save()
 
+    def validate_password(self, username, password):
+        if not self.user_exists(username):
+            return False
+
+        encrypted_password = hashlib.sha256(password.encode()).hexdigest()
+
+        if self.get_user(username).password != encrypted_password:
+            return False
+
+        return True
+
     def save(self):
         with open('accounts.pickle', 'wb') as f:
             pickle.dump(self.accounts, f)
+
 
 class Account:
     def __init__(self, username, password, first_name, last_name, email, address):
@@ -60,3 +61,7 @@ class Account:
         self.last_name = last_name
         self.email = email
         self.address = address
+        self.online = False
+
+
+manager = AccountManager()

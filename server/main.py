@@ -56,32 +56,29 @@ class ServerThread(threading.Thread):
 Primary handler for client connections.
 """
 class Handler:
-    # Initialize modules.
-    accountManager = accounts.AccountManager()
-    sessionManager = session.SessionManager()
-
     def login(self, username, password):
-        # Make sure the user exists.
-        if not Handler.accountManager.user_exists(username):
-            return False
-
-        # Validate password.
-        if not Handler.accountManager.validate_password(username, password):
-            return False
-
-        return True
+        token = session.manager.login(username, password)
+        self.username = username
+        return token
 
     def logout(self, token):
-        pass
+        session.manager.validate_token(token)
+
+        self.username = None
+        return session.manager.logout(token)
 
     def get_users(self):
-        return Handler.accountManager.get_users()
+        return accounts.manager.get_users()
 
     def get_user(self, username):
-        pass
+        user = accounts.manager.get_user(username)
+        return {
+            "username": user.username,
+            "email": user.email
+        }
 
     def create_user(self, username, password, first_name, last_name, email, address):
-        Handler.accountManager.create_user(
+        accounts.manager.create_user(
             username,
             password,
             first_name,
@@ -92,13 +89,13 @@ class Handler:
         return True
 
     def delete_user(self, token, username):
-        pass
+        session.manager.validate_token(token)
 
     def get_messages(self, token, username, group, start_time, end_time):
-        pass
+        session.manager.validate_token(token)
 
     def send_message(self, token, username, group, text):
-        pass
+        session.manager.validate_token(token)
 
     def get_groups(self, token):
         pass
@@ -119,13 +116,13 @@ class Handler:
         pass
 
     def get_friends(self, token):
-        pass
+        session.manager.validate_token(token)
 
     def add_friend(self, token, username):
-        pass
+        session.manager.validate_token(token)
 
     def remove_friend(self, token, username):
-        pass
+        session.manager.validate_token(token)
 
 
 def main():
