@@ -1,6 +1,5 @@
 import json
 import logging
-import queue
 import socket
 import threading
 
@@ -42,6 +41,7 @@ class Proxy:
         self.listener = listener
         self.listener.handler = handler(self) # Instantiate the handler class
         self.listener.start()
+        self.id_counter = 0
 
     """
     Gets the name of the remote peer as a tuple of the address and port.
@@ -56,12 +56,14 @@ class Proxy:
         request = {
             "jsonrpc": "2.0",
             "method": name,
-            "params": params
+            "params": params,
+            "id": self.id_counter
         }
+        self.id_counter += 1
 
         # Send the request and then read the response.
         self.listener.send(request)
-        response = self.listener.receive_and_wait()
+        response = self.listener.receive_and_wait(request["id"])
 
         if "error" in response:
             raise RpcException(response["error"]["code"], response["error"]["message"])
@@ -99,9 +101,11 @@ class Listener(threading.Thread):
     def __init__(self, socket, timeout = 1.0, bufsize = 4096):
         threading.Thread.__init__(self)
 
-        self.message_queue = queue.Queue()
+        self.message_buffer = {}
+        self.message_events = {}
         self.open = False
         self.socket = socket
+        self.write_lock = threading.Lock()
         self.handler = None
         self.bufsize = bufsize
 
@@ -109,37 +113,37 @@ class Listener(threading.Thread):
         self.address = socket.getpeername()
 
     """
-    Receives the next message if available, or raises an Empty exception.
+    Receives a message with a given ID, waiting until it arrives.
 
     Returns the message as a dictionary.
     """
-    def receive(self):
-        # Attempt to get a message.
-        message = self.message_queue.get(False)
-        # If no exception was thrown, we can use the result.
-        self.message_queue.task_done()
-        return message
+    def receive_and_wait(self, id, timeout=5.0):
+        self.message_events[id] = threading.Event()
 
-    """
-    Receives the next message, waiting until it arrives.
+        # Block until the item in the buffer is accessible.
+        if not self.message_events[id].wait(timeout):
+            del self.message_events[id]
+            raise Exception("Message timed out")
 
-    Returns the message as a dictionary.
-    """
-    def receive_and_wait(self):
-        # Block until the item in the queue is accessible.
-        message = self.message_queue.get(True)
-        # Mark it as received.
-        self.message_queue.task_done()
+        # Get the message and remove it from the buffer.
+        message = self.message_buffer[id]
+        del self.message_events[id]
+        del self.message_buffer[id]
+
         return message
 
     """
     Sends a message to the peer and waits for the response.
     """
     def send(self, message):
+        self.write_lock.acquire()
+        logging.info("Sending message to %s", self.address)
+
         # Serialize the message.
         serialized = json.dumps(message)
         # Send a packet ending in a magic byte package separator.
         self.socket.sendall(serialized.encode() + b"\0\0\0\0")
+        self.write_lock.release()
 
     """
     Runs the listener, which reads from the peer forever until close() is called.
@@ -181,14 +185,16 @@ class Listener(threading.Thread):
                 logging.info("Received message from %s", self.address)
 
                 if not "method" in message:
-                    # If the message is a response, put it into the shared queue to alert consumers.
-                    self.message_queue.put(message)
+                    # If the message is a response, put it into the shared buffer and alert consumers.
+                    # Make sure the ID is valid.
+                    if not message["id"] in self.message_events:
+                        logging.warning("Unknown reply ID %d", message["id"])
+                    else:
+                        self.message_buffer[message["id"]] = message
+                        self.message_events[message["id"]].set()
                 else:
                     # The message is a request, so handle it now.
                     threading.Thread(target=lambda: self._handle_request(message)).start()
-
-        # Make sure all consumer threads pick out their responses before we clean up.
-        self.message_queue.join()
 
         # Make sure the socket gets closed if we were asked politely to close.
         self.close()
@@ -204,15 +210,19 @@ class Listener(threading.Thread):
     """
     def close(self):
         self.open = False
+        self.write_lock.acquire()
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
         except OSError:
             pass
+        finally:
+            self.write_lock.release()
 
     def _handle_request(self, request):
         response = {
-            "jsonrpc": "2.0"
+            "jsonrpc": "2.0",
+            "id": request["id"]
         }
 
         # Attempt to invoke the requested method.
