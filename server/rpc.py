@@ -15,14 +15,14 @@ class RpcException(Exception):
 """
 Connects to a remote RPC peer.
 """
-def connect(address, port, handler = {}, timeout=5):
+def connect(address, port, handler, timeout=5):
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     connection.settimeout(timeout)
     connection.connect((address, port))
 
-    listener = Listener(connection, handler)
-    return Proxy(listener)
+    listener = Listener(connection)
+    return Proxy(listener, handler)
 
 
 """
@@ -38,8 +38,9 @@ class Proxy:
     """
     Creates a new proxy object around the given listener.
     """
-    def __init__(self, listener):
+    def __init__(self, listener, handler):
         self.listener = listener
+        self.listener.handler = handler(self) # Instantiate the handler class
         self.listener.start()
 
     """
@@ -95,13 +96,13 @@ class Listener(threading.Thread):
     """
     Creates a new listener for a given socket.
     """
-    def __init__(self, socket, handler, timeout = 1.0, bufsize = 4096):
+    def __init__(self, socket, timeout = 1.0, bufsize = 4096):
         threading.Thread.__init__(self)
 
         self.message_queue = queue.Queue()
         self.open = False
         self.socket = socket
-        self.handler = handler() # Instantiate the handler class
+        self.handler = None
         self.bufsize = bufsize
 
         socket.settimeout(timeout)
@@ -184,7 +185,7 @@ class Listener(threading.Thread):
                     self.message_queue.put(message)
                 else:
                     # The message is a request, so handle it now.
-                    self._handle_request(message)
+                    threading.Thread(target=lambda: self._handle_request(message)).start()
 
         # Make sure all consumer threads pick out their responses before we clean up.
         self.message_queue.join()
@@ -237,3 +238,11 @@ class Listener(threading.Thread):
 
         # Send back a response to the peer.
         self.send(response)
+
+
+"""
+Base class for handlers.
+"""
+class Handler:
+    def __init__(self, proxy):
+        self.proxy = proxy
