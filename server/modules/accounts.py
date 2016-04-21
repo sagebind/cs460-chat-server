@@ -13,12 +13,15 @@ class AccountManager:
     def user_exists(self, username):
         return username in self.accounts
 
+    def validate_user(self, username):
+        if not username in self.accounts:
+            raise Exception("User " + username + " does not exist")
+
     def get_users(self):
         return list(self.accounts.keys())
 
     def get_user(self, username):
-        if not self.user_exists(username):
-            raise Exception("No such user exists.")
+        self.validate_user(username)
         return self.accounts[username]
 
     def create_user(self, username, password, first_name, last_name, email, address):
@@ -33,6 +36,7 @@ class AccountManager:
         self.save()
 
     def delete_user(self, username):
+        self.validate_user(username)
         if self.user_exists(username):
             del self.accounts[username]
             self.save()

@@ -1,5 +1,5 @@
 from server import rpc
-from server.modules import (accounts, session)
+from server.modules import (accounts, friends, groups, messages, session)
 import logging
 import socket
 import threading
@@ -10,9 +10,6 @@ An RPC server that waits for connections from peers and handles them on
 separate threads.
 """
 class Server:
-    def __init__(self, handler):
-        self.handler = handler
-
     def listen(self, port):
         # Set up a connection server.
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,7 +29,7 @@ class Server:
 
             # Spawn a separate thread to handle the connection.
             logging.info("Received connection from %s", address)
-            listener = rpc.Listener(connection, self.handler)
+            listener = rpc.Listener(connection)
             thread = ServerThread(listener)
             thread.start()
 
@@ -46,7 +43,7 @@ class ServerThread(threading.Thread):
         self.listener = listener
 
     def run(self):
-        proxy = rpc.Proxy(self.listener)
+        proxy = rpc.Proxy(self.listener, Handler)
         self.listener.join()
         self.listener.close()
         logging.info("Client %s disconnected", proxy.get_peer_name())
@@ -55,16 +52,19 @@ class ServerThread(threading.Thread):
 """
 Primary handler for client connections.
 """
-class Handler:
+class Handler(rpc.Handler):
     def login(self, username, password):
-        token = session.manager.login(username, password)
-        self.username = username
+        token = session.manager.login(username, password, self.proxy.get_peer_name())
+
+        # Set up callback handler.
+        messages.manager.set_callback(username, lambda message: self.proxy.receive_message(**message))
+
         return token
 
     def logout(self, token):
         session.manager.validate_token(token)
-
-        self.username = None
+        username = session.manager.get_token_user(token)
+        messages.manager.remove_callback(username)
         return session.manager.logout(token)
 
     def get_users(self):
@@ -94,35 +94,46 @@ class Handler:
     def get_messages(self, token, username, group, start_time, end_time):
         session.manager.validate_token(token)
 
-    def send_message(self, token, username, group, text):
+    def send_message(self, token, receiver, text):
         session.manager.validate_token(token)
+        sender = session.manager.get_token_user(token)
+        messages.manager.send(sender, receiver["type"], text, username=receiver.get("username", None), group=receiver.get("id", None))
+        return True
 
     def get_groups(self, token):
-        pass
+        session.manager.validate_token(token)
+        username = session.manager.get_token_user(token)
+        return groups.manager.get_groups_with_user(username)
 
     def get_group(self, token, id):
-        pass
+        session.manager.validate_token(token)
 
     def create_group(self, token):
-        pass
+        session.manager.validate_token(token)
 
     def add_group_user(self, token, group, username):
-        pass
+        session.manager.validate_token(token)
 
     def remove_group_user(self, token, group, username):
-        pass
+        session.manager.validate_token(token)
 
     def delete_group(self, token, group):
-        pass
+        session.manager.validate_token(token)
 
     def get_friends(self, token):
         session.manager.validate_token(token)
+        username = session.manager.get_token_user(token)
+        return friends.manager.get_friends(username)
 
     def add_friend(self, token, username):
         session.manager.validate_token(token)
+        owner_username = session.manager.get_token_user(token)
+        friends.manager.add_friend(owner_username, username)
+        return True
 
     def remove_friend(self, token, username):
         session.manager.validate_token(token)
+        username = session.manager.get_token_user(token)
 
 
 def main():
@@ -135,5 +146,5 @@ def main():
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
     logging.getLogger().addHandler(handler)
 
-    server = Server(Handler)
+    server = Server()
     server.listen(6543)
