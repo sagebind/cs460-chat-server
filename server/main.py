@@ -98,7 +98,7 @@ class Handler(rpc.Handler):
 
     def get_messages_in_group(self, token, group):
         session.manager.validate_token(token)
-        messages.manager.get_all_in_group(group)
+        return messages.manager.get_all_in_group(group)
 
     def send_message(self, token, receiver, text):
         session.manager.validate_token(token)
@@ -113,18 +113,29 @@ class Handler(rpc.Handler):
 
     def get_group(self, token, id):
         session.manager.validate_token(token)
+        return groups.manager.get_group(id)
 
     def create_group(self, token):
         session.manager.validate_token(token)
+        username = session.manager.get_token_user(token)
+
+        id = groups.manager.create_group()
+        groups.manager.add_user_to_group(username, id)
+
+        return id
 
     def add_group_user(self, token, group, username):
         session.manager.validate_token(token)
+        groups.manager.add_user_to_group(username, group)
+        return True
 
     def remove_group_user(self, token, group, username):
         session.manager.validate_token(token)
+        return True
 
     def delete_group(self, token, group):
         session.manager.validate_token(token)
+        return True
 
     def get_friends(self, token):
         session.manager.validate_token(token)
@@ -139,7 +150,9 @@ class Handler(rpc.Handler):
 
     def remove_friend(self, token, username):
         session.manager.validate_token(token)
-        username = session.manager.get_token_user(token)
+        owner_username = session.manager.get_token_user(token)
+        friends.manager.remove_friend(owner_username, username)
+        return True
 
 
 def main():

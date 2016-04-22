@@ -2,6 +2,9 @@ import hashlib
 import pickle
 
 
+"""
+Manages the list of accounts.
+"""
 class AccountManager:
     def __init__(self):
         try:
@@ -10,20 +13,35 @@ class AccountManager:
         except FileNotFoundError:
             self.accounts = {}
 
+    """
+    Checks if a user exists.
+    """
     def user_exists(self, username):
         return username in self.accounts
 
+    """
+    Validates a given username.
+    """
     def validate_user(self, username):
         if not username in self.accounts:
             raise Exception("User " + username + " does not exist")
 
+    """
+    Gets a list of all users.
+    """
     def get_users(self):
         return list(self.accounts.keys())
 
+    """
+    Gets information about a user by their username.
+    """
     def get_user(self, username):
         self.validate_user(username)
         return self.accounts[username]
 
+    """
+    Creates a new user.
+    """
     def create_user(self, username, password, first_name, last_name, email, address):
         if self.user_exists(username):
             raise Exception("A user with that username already exists!")
@@ -35,12 +53,18 @@ class AccountManager:
 
         self.save()
 
+    """
+    Deletes a user.
+    """
     def delete_user(self, username):
         self.validate_user(username)
         if self.user_exists(username):
             del self.accounts[username]
             self.save()
 
+    """
+    Validates a user's password.
+    """
     def validate_password(self, username, password):
         if not self.user_exists(username):
             return False
@@ -52,6 +76,9 @@ class AccountManager:
 
         return True
 
+    """
+    Save the list of accounts.
+    """
     def save(self):
         with open('accounts.pickle', 'wb') as f:
             pickle.dump(self.accounts, f)

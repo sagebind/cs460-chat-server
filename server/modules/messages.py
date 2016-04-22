@@ -31,6 +31,8 @@ class MessageManager:
     Gets all messages in a group.
     """
     def get_all_in_group(self, group):
+        groups.manager.validate_group(group)
+
         messages = []
         for message in self.messages:
             if message["receiver"]["type"] == "group" and message["receiver"]["id"] == group:
@@ -55,8 +57,7 @@ class MessageManager:
             accounts.manager.validate_user(username)
             message["receiver"]["username"] = username
         elif receiver_type == "group":
-            if not groups.manager.group_exists(group):
-                raise Exception("Group does not exist")
+            groups.manager.validate_group(group)
             message["receiver"]["id"] = group
         else:
             raise Exception("Invalid recipient type")
@@ -64,8 +65,8 @@ class MessageManager:
         self.messages.append(message)
 
         # If a callback was set to send a message immediately, invoke it now.
-        self.call_callback(sender, message)
         if receiver_type == "user":
+            self.call_callback(sender, message)
             self.call_callback(username, message)
         elif receiver_type == "group":
             for user in groups.manager.get_group(group)["users"]:
@@ -95,6 +96,9 @@ class MessageManager:
         except:
             pass
 
+    """
+    Saves the message database.
+    """
     def save(self):
         with open('messages.pickle', 'wb') as f:
             pickle.dump(self.messages, f)

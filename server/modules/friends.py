@@ -2,6 +2,9 @@ from server.modules import accounts
 import pickle
 
 
+"""
+Manages friend connections between users.
+"""
 class FriendManager:
     def __init__(self):
         try:
@@ -35,6 +38,21 @@ class FriendManager:
 
         self.save()
 
+    """
+    Remove a user as a friend for a given user.
+    """
+    def remove_friend(self, username, friend_username):
+        accounts.manager.validate_user(username)
+        accounts.manager.validate_user(friend_username)
+
+        if username in self.friends and friend_username in self.friends[username]:
+            self.friends[username].remove(friend_username)
+
+        self.save()
+
+    """
+    Saves the list of friend mappings.
+    """
     def save(self):
         with open('friends.pickle', 'wb') as f:
             pickle.dump(self.friends, f)

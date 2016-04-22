@@ -1,14 +1,32 @@
 from server.modules import accounts
+import pickle
 import uuid
 
 
+"""
+Manages groups.
+"""
 class GroupManager:
     def __init__(self):
-        self.groups = {}
-        self.user_map = {}
+        try:
+            with open('groups.pickle', 'rb') as f:
+                (self.groups, self.user_map) = pickle.load(f)
+        except FileNotFoundError:
+            self.groups = {}
+            self.user_map = {}
 
+    """
+    Checks if a group exists.
+    """
     def group_exists(self, id):
         return id in self.groups
+
+    """
+    Validates a group ID.
+    """
+    def validate_group(self, id):
+        if not id in self.groups:
+            raise Exception("Group does not exist")
 
     """
     Gets a list of all groups.
@@ -27,35 +45,74 @@ class GroupManager:
 
         return self.user_map[username]
 
-    def get_group(self, group):
-        return self.groups[group]
+    """
+    Gets details about a group.
+    """
+    def get_group(self, id):
+        self.validate_group(id)
 
+        group = self.groups[id]
+        group["name"] = ", ".join(group["users"])
+        return group
+
+    """
+    Creates a new group and returns its ID.
+    """
     def create_group(self):
-        id = uuid.uuid4()
+        id = str(uuid.uuid4())
         self.groups[id] = {
             "id": id,
             "users": []
         }
+
+        self.save()
         return id
 
-    def delete_group(self, group):
-        for username in self.groups[group]["users"]:
-            self.user_map[username].remove(group)
-        del self.groups[group]
+    """
+    Deletes a group.
+    """
+    def delete_group(self, id):
+        self.validate_group(id)
 
-    def add_user_to_group(self, username, group):
+        for username in self.groups[id]["users"]:
+            self.user_map[username].remove(id)
+        del self.groups[id]
+
+        self.save()
+
+    """
+    Adds a user to a group.
+    """
+    def add_user_to_group(self, username, id):
         accounts.manager.validate_user(username)
+        self.validate_group(id)
 
-        self.groups[group]["users"].append(username)
+        self.groups[id]["users"].append(username)
 
         if username in self.user_map:
-            self.user_map[username].append(group)
+            self.user_map[username].append(id)
         else:
-            self.user_map[username] = [group]
+            self.user_map[username] = [id]
 
-    def remove_user_from_group(self, username, group):
-        self.groups[group]["users"].remove(username)
-        self.user_map[username].remove(group)
+        self.save()
+
+    """
+    Removes a user from a group.
+    """
+    def remove_user_from_group(self, username, id):
+        self.validate_group(id)
+
+        self.groups[id]["users"].remove(username)
+        self.user_map[username].remove(id)
+
+        self.save()
+
+    """
+    Saves the groups list.
+    """
+    def save(self):
+        with open('groups.pickle', 'wb') as f:
+            pickle.dump((self.groups, self.user_map), f)
 
 
 manager = GroupManager()

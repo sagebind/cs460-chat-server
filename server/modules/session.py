@@ -74,7 +74,7 @@ class SessionManager:
 Generates a new random authentication token.
 """
 class Token:
-    lifetime = 900 # 15 minutes
+    lifetime = 86400 # 24 hours
 
     def __init__(self, username, address):
         # Store info.
