@@ -3,6 +3,9 @@ import pickle
 import time
 
 
+"""
+Manages and stores messages between users and in groups.
+"""
 class MessageManager:
     def __init__(self):
         self.callbacks = {}
@@ -11,6 +14,28 @@ class MessageManager:
                 self.messages = pickle.load(f)
         except FileNotFoundError:
             self.messages = []
+
+    """
+    Gets all messages between two users.
+    """
+    def get_all_with_users(self, username1, username2):
+        messages = []
+        for message in self.messages:
+            if message["sender"] == username1 and message["receiver"]["type"] == "user" and message["receiver"]["username"] == username2:
+                messages.append(message)
+            elif message["sender"] == username2 and message["receiver"]["type"] == "user" and message["receiver"]["username"] == username1:
+                messages.append(message)
+        return messages
+
+    """
+    Gets all messages in a group.
+    """
+    def get_all_in_group(self, group):
+        messages = []
+        for message in self.messages:
+            if message["receiver"]["type"] == "group" and message["receiver"]["id"] == group:
+                messages.append(message)
+        return messages
 
     """
     Sends a message.

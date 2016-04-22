@@ -91,13 +91,19 @@ class Handler(rpc.Handler):
     def delete_user(self, token, username):
         session.manager.validate_token(token)
 
-    def get_messages(self, token, username, group, start_time, end_time):
+    def get_messages_with_user(self, token, username):
         session.manager.validate_token(token)
+        me = session.manager.get_token_user(token)
+        return messages.manager.get_all_with_users(me, username)
+
+    def get_messages_in_group(self, token, group):
+        session.manager.validate_token(token)
+        messages.manager.get_all_in_group(group)
 
     def send_message(self, token, receiver, text):
         session.manager.validate_token(token)
-        sender = session.manager.get_token_user(token)
-        messages.manager.send(sender, receiver["type"], text, username=receiver.get("username", None), group=receiver.get("id", None))
+        me = session.manager.get_token_user(token)
+        messages.manager.send(me, receiver["type"], text, username=receiver.get("username", None), group=receiver.get("id", None))
         return True
 
     def get_groups(self, token):
