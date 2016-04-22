@@ -46,6 +46,9 @@ class AccountManager:
         if self.user_exists(username):
             raise Exception("A user with that username already exists!")
 
+        if len(password) < 6:
+            raise Exception("Password must be at least 6 characters")
+
         encrypted_password = hashlib.sha256(password.encode()).hexdigest()
 
         account = Account(username, encrypted_password, first_name, last_name, email, address)
